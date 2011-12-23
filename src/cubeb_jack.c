@@ -34,7 +34,7 @@ struct cubeb_stream {
   cubeb_data_callback data_callback;
   cubeb_state_callback state_callback;
   cubeb_stream_params params;
-  jack_port_t * output_ports;
+  jack_port_t * output_ports[2];
   void * user_ptr;
 };
 
@@ -58,22 +58,16 @@ void jack_shutdown(void *arg) {
 int jack_xrun(void *arg)
 {
 
-	cubeb *ctx = (cubeb *)arg;
+  cubeb *ctx = (cubeb *)arg;
 
-	ctx->jack->xruns++;
+  ctx->jack->xruns++;
 	
-	printf("Cubeb Jack %s xrun number %d!\n", ctx->jack->client_name, ctx->jack->xruns);
+  printf("Cubeb Jack %s xrun number %d!\n", ctx->jack->client_name, ctx->jack->xruns);
 
-	return 0;
+  return 0;
 
 }
 
-/** Initialize an application context.  This will perform any library or
-    application scoped initialization.
-    @param context
-    @param context_name
-    @retval CUBEB_OK
-    @retval CUBEB_ERROR */
 int cubeb_init(cubeb ** context, char const * context_name) {
 
   cubeb *ctx;
@@ -84,7 +78,6 @@ int cubeb_init(cubeb ** context, char const * context_name) {
   assert(ctx);
              
   printf("Cubeb Jack init context: %s\n", context_name);      
-
 
   jack = calloc (1, sizeof (jack_t));
 
@@ -97,7 +90,7 @@ int cubeb_init(cubeb ** context, char const * context_name) {
 
   jack->userdata = ctx;
 
-	// Connect up to the JACK server 
+  // Connect up to the JACK server 
 
   jack->jack_client = jack_client_open (jack->client_name, jack->options, &jack->status, jack->server_name);
   
@@ -106,7 +99,9 @@ int cubeb_init(cubeb ** context, char const * context_name) {
     if (jack->status & JackServerFailed) {
       printf("Unable to connect to JACK server\n");
 	}
-    exit (1);
+	free(jack);
+	free(ctx);
+    return CUBEB_ERROR;
   }
 
   if (jack->status & JackNameNotUnique) {
@@ -124,7 +119,9 @@ int cubeb_init(cubeb ** context, char const * context_name) {
 
   if (jack_activate (jack->jack_client)) {
     printf("cannot activate client\n");
-    exit (1);
+	free(jack);
+	free(ctx);
+    return CUBEB_ERROR;
   }
 
   ctx->jack = jack;
@@ -155,8 +152,17 @@ int cubeb_stream_init(cubeb * context, cubeb_stream ** stream, char const * stre
                       cubeb_state_callback state_callback,
                       void * user_ptr) {
                 
-  printf("Cubeb Jack init stream\n");      
-                      
+  printf("Cubeb Jack init stream\n");
+  
+  cubeb_stream *stm = calloc(1, sizeof(cubeb_stream));
+  
+  stm->context = context;
+  
+  stm->output_ports[0] = jack_port_register (stm->context->jack->jack_client, "Test_Left", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+  stm->output_ports[1] = jack_port_register (stm->context->jack->jack_client, "Test_Right", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+  
+  *stream = stm;
+                   
   return CUBEB_OK;
                       
 }
@@ -164,7 +170,12 @@ int cubeb_stream_init(cubeb * context, cubeb_stream ** stream, char const * stre
 void cubeb_stream_destroy(cubeb_stream * stream) {
 
   printf("Cubeb Jack destroy stream\n");      
-                      
+
+  jack_port_unregister (stream->context->jack->jack_client, stream->output_ports[0]);
+  jack_port_unregister (stream->context->jack->jack_client, stream->output_ports[1]);
+     
+  free(stream);   
+  
   return CUBEB_OK;
 }
 
