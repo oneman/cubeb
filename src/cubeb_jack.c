@@ -1,4 +1,7 @@
-#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 #include <sys/time.h>
 #include <assert.h>
 #include <limits.h>
@@ -152,7 +155,7 @@ int cubeb_stream_init(cubeb * context, cubeb_stream ** stream, char const * stre
                       cubeb_state_callback state_callback,
                       void * user_ptr) {
       
-  int c; 
+  unsigned int c; 
   char portname[256];
           
   printf("Cubeb Jack init stream\n");
@@ -161,6 +164,8 @@ int cubeb_stream_init(cubeb * context, cubeb_stream ** stream, char const * stre
   stm->output_ports = calloc(stream_params.channels, sizeof(jack_port_t *));
   stm->context = context;
   memcpy(&stm->params, &stream_params, sizeof(stream_params));
+  memcpy(&stm->data_callback, &data_callback, sizeof(data_callback));
+  memcpy(&stm->state_callback, &state_callback, sizeof(state_callback));  
   
   for(c = 0; c < stream_params.channels; c++) {
     sprintf(portname, "%s_%d", stream_name, c);
@@ -177,7 +182,7 @@ void cubeb_stream_destroy(cubeb_stream * stream) {
 
   printf("Cubeb Jack destroy stream\n");      
 
-  int c;
+  unsigned int c;
 
   for(c = 0; c < stream->params.channels; c++) {
     jack_port_unregister (stream->context->jack->jack_client, stream->output_ports[c]);
@@ -185,8 +190,7 @@ void cubeb_stream_destroy(cubeb_stream * stream) {
 
   free(stream->output_ports);
   free(stream);   
-  
-  return CUBEB_OK;
+
 }
 
 int cubeb_stream_start(cubeb_stream * stream) {
