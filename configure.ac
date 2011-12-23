@@ -47,11 +47,14 @@ AM_PROG_LIBTOOL
 
 dnl Choose the target platform audio API
 AC_CHECK_HEADERS([alsa/asoundlib.h pulse/pulseaudio.h \
-                  AudioToolbox/AudioToolbox.h \
+                  AudioToolbox/AudioToolbox.h jack/jack.h\
                   windows.h dsound.h])
 platform_api="none"
 platform_lib="none"
-if test "x$ac_cv_header_pulse_pulseaudio_h" = "xyes"; then
+if test "x$ac_cv_header_jack_jack_h" = "xyes"; then
+  platform_api="jack"
+  platform_lib="-ljack"
+elif test "x$ac_cv_header_pulse_pulseaudio_h" = "xyes"; then
   platform_api="pulse"
   platform_lib="-lpulse"
 elif test "x$ac_cv_header_alsa_asoundlib_h" = "xyes"; then
@@ -67,6 +70,7 @@ elif test "x$ac_cv_header_windows_h" = "xyes"; then
     platform_api="wave"
 #  fi
 fi
+AM_CONDITIONAL([JACK], [test ${platform_api} = "jack"])
 AM_CONDITIONAL([PULSE], [test ${platform_api} = "pulse"])
 AM_CONDITIONAL([ALSA], [test ${platform_api} = "alsa"])
 AM_CONDITIONAL([COREAUDIO], [test ${platform_api} = "coreaudio"])

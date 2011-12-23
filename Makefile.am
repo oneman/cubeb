@@ -21,6 +21,9 @@ cubebinclude_HEADERS = include/cubeb/cubeb.h include/cubeb/cubeb-stdint.h
 
 lib_LTLIBRARIES = src/libcubeb.la
 
+if JACK
+src_libcubeb_la_SOURCES = src/cubeb_jack.c
+endif
 if PULSE
 src_libcubeb_la_SOURCES = src/cubeb_pulse.c
 endif
@@ -40,7 +43,8 @@ endif
 EXTRA_src_libcubeb_la_SOURCES = \
 	cubeb_alsa.c cubeb_pulse.c \
 	cubeb_coreaudio.c \
-	cubeb_directsound.c cubeb_winmm.c
+	cubeb_directsound.c cubeb_winmm.c \
+	cubeb_jack.c
 
 src_libcubeb_la_LDFLAGS = -export-symbols-regex '^cubeb_'
 
