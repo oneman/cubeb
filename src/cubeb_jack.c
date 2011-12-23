@@ -34,7 +34,7 @@ struct cubeb_stream {
   cubeb_data_callback data_callback;
   cubeb_state_callback state_callback;
   cubeb_stream_params params;
-  jack_port_t * output_ports[2];
+  jack_port_t **output_ports;
   void * user_ptr;
 };
 
@@ -83,7 +83,7 @@ int cubeb_init(cubeb ** context, char const * context_name) {
 
   assert(jack);
 
-  jack->client_name = "cubeb";
+  jack->client_name = context_name;
 
   jack->server_name = NULL;
   jack->options = JackNoStartServer;
@@ -151,18 +151,24 @@ int cubeb_stream_init(cubeb * context, cubeb_stream ** stream, char const * stre
                       cubeb_data_callback data_callback,
                       cubeb_state_callback state_callback,
                       void * user_ptr) {
-                
+      
+  int c; 
+  char portname[256];
+          
   printf("Cubeb Jack init stream\n");
   
   cubeb_stream *stm = calloc(1, sizeof(cubeb_stream));
-  
+  stm->output_ports = calloc(stream_params.channels, sizeof(jack_port_t *));
   stm->context = context;
+  memcpy(&stm->params, &stream_params, sizeof(stream_params));
   
-  stm->output_ports[0] = jack_port_register (stm->context->jack->jack_client, "Test_Left", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
-  stm->output_ports[1] = jack_port_register (stm->context->jack->jack_client, "Test_Right", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+  for(c = 0; c < stream_params.channels; c++) {
+    sprintf(portname, "%s_%d", stream_name, c);
+  	stm->output_ports[0] = jack_port_register (stm->context->jack->jack_client, portname, JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+  }
   
   *stream = stm;
-                   
+
   return CUBEB_OK;
                       
 }
@@ -171,9 +177,13 @@ void cubeb_stream_destroy(cubeb_stream * stream) {
 
   printf("Cubeb Jack destroy stream\n");      
 
-  jack_port_unregister (stream->context->jack->jack_client, stream->output_ports[0]);
-  jack_port_unregister (stream->context->jack->jack_client, stream->output_ports[1]);
-     
+  int c;
+
+  for(c = 0; c < stream->params.channels; c++) {
+    jack_port_unregister (stream->context->jack->jack_client, stream->output_ports[c]);
+  }
+
+  free(stream->output_ports);
   free(stream);   
   
   return CUBEB_OK;
